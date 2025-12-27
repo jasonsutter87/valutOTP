@@ -25,10 +25,18 @@ class FolderChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: isSelected ? primaryColor : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? primaryColor : Colors.grey.shade400,
-            width: isSelected ? 2 : 1.5,
-          ),
+          border: isSelected
+              ? Border.all(color: Colors.white, width: 2)
+              : null,
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: primaryColor.withValues(alpha: 0.4),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
         ),
         child: Text(
           label,

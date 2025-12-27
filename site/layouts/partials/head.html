@@ -1,0 +1,48 @@
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<title>{{ .Title }} | VaultOTP</title>
+<meta name="description" content="{{ .Description | default .Site.Params.description }}">
+
+<!-- Favicon -->
+<link rel="icon" href="/images/app_icon.png" type="image/png">
+<link rel="apple-touch-icon" href="/images/app_icon.png">
+
+<!-- CSS - Tailwind -->
+<link rel="stylesheet" href="/css/main.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        typography: {
+          DEFAULT: {
+            css: {
+              maxWidth: 'none',
+            },
+          },
+        },
+      },
+    },
+    plugins: [],
+  }
+</script>
+<style type="text/tailwindcss">
+  @layer utilities {
+    .prose h1 { @apply text-3xl font-bold text-gray-900 mb-6 mt-8; }
+    .prose h2 { @apply text-2xl font-bold text-gray-800 mb-4 mt-8; }
+    .prose h3 { @apply text-xl font-semibold text-gray-800 mb-3 mt-6; }
+    .prose p { @apply text-gray-600 mb-4 leading-relaxed; }
+    .prose ul { @apply list-disc list-inside mb-4 text-gray-600; }
+    .prose li { @apply mb-2; }
+    .prose strong { @apply text-gray-900; }
+    .prose a { @apply text-blue-600 hover:underline; }
+  }
+</style>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  body { font-family: 'Inter', sans-serif; }
+</style>

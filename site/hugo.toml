@@ -1,0 +1,17 @@
+baseURL = 'https://vaultotp.app/'
+languageCode = 'en-us'
+title = 'VaultOTP - 2FA Authenticator with Folders'
+
+[params]
+CompanyName = 'VaultOTP'
+tagline = 'Google Authenticator, but with folders.'
+description = 'A privacy-first 2FA authenticator app that lets you organize your codes into folders. Import from Google Authenticator. No accounts, no tracking, 100% offline.'
+playStoreUrl = '#'
+appStoreUrl = '#'
+contactEmail = 'support@vaultotp.app'
+
+[environments.development]
+baseURL = 'http://localhost:1313/'
+
+[environments.production]
+baseURL = 'https://vaultotp.app/'

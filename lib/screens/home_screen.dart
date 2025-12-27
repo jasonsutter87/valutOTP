@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/account.dart';
 import '../providers/accounts_provider.dart';
 import '../providers/folders_provider.dart';
+import '../providers/premium_provider.dart';
 import '../providers/selected_folder_provider.dart';
 import '../widgets/account_tile.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/folder_chip.dart';
+import '../widgets/upgrade_modal.dart';
 import 'add_account_screen.dart';
 import 'export_screen.dart';
 import 'folder_management_screen.dart';
@@ -50,11 +52,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
   }
 
+  Future<void> _requirePremium(VoidCallback onPremium) async {
+    final isPremium = ref.read(isPremiumProvider);
+    if (isPremium) {
+      onPremium();
+    } else {
+      final result = await UpgradeModal.show(context);
+      if (result == true) {
+        onPremium();
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final foldersAsync = ref.watch(foldersProvider);
     final accountsAsync = ref.watch(accountsProvider);
     final selectedFolderId = ref.watch(selectedFolderProvider);
+    final isPremium = ref.watch(isPremiumProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -90,12 +105,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               onSelected: (value) {
                 switch (value) {
                   case 'folders':
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const FolderManagementScreen(),
-                      ),
-                    );
+                    _requirePremium(() {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const FolderManagementScreen(),
+                        ),
+                      );
+                    });
                     break;
                   case 'export':
                     Navigator.push(
@@ -108,11 +125,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 }
               },
               itemBuilder: (context) => [
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'folders',
                   child: ListTile(
-                    leading: Icon(Icons.folder_outlined),
-                    title: Text('Manage Folders'),
+                    leading: const Icon(Icons.folder_outlined),
+                    title: const Text('Manage Folders'),
+                    trailing: isPremium
+                        ? null
+                        : Icon(
+                            Icons.lock_outline,
+                            size: 16,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
                     contentPadding: EdgeInsets.zero,
                   ),
                 ),
@@ -130,18 +154,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
       body: Column(
         children: [
-          // Folder tabs
-          foldersAsync.when(
-            data: (folders) => _buildFolderTabs(context, ref, folders, selectedFolderId),
-            loading: () => const SizedBox(height: 56),
-            error: (_, __) => const SizedBox(height: 56),
-          ),
+          // Folder tabs - only show if premium
+          if (isPremium)
+            foldersAsync.when(
+              data: (folders) => _buildFolderTabs(context, ref, folders, selectedFolderId),
+              loading: () => const SizedBox(height: 56),
+              error: (_, __) => const SizedBox(height: 56),
+            )
+          else
+            _buildUpgradeBanner(context),
 
           // Account list
           Expanded(
             child: accountsAsync.when(
               data: (accounts) {
-                final filteredAccounts = selectedFolderId == null
+                // For free users, show all accounts (no folder filtering)
+                final filteredAccounts = !isPremium || selectedFolderId == null
                     ? accounts
                     : accounts.where((a) => a.folderId == selectedFolderId).toList();
 
@@ -163,7 +191,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   );
                 }
 
-                return _buildAccountList(context, ref, filteredAccounts);
+                return _buildAccountList(context, ref, filteredAccounts, isPremium);
               },
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (error, _) => Center(child: Text('Error: $error')),
@@ -173,7 +201,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
       floatingActionButton: _isSelectionMode
           ? FloatingActionButton.extended(
-              onPressed: () => _showBulkMoveDialog(context, ref),
+              onPressed: () => _requirePremium(() => _showBulkMoveDialog(context, ref)),
               icon: const Icon(Icons.drive_file_move),
               label: const Text('Move to folder'),
             )
@@ -181,6 +209,72 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               onPressed: () => _navigateToAddAccount(context),
               child: const Icon(Icons.add),
             ),
+    );
+  }
+
+  Widget _buildUpgradeBanner(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return GestureDetector(
+      onTap: () => UpgradeModal.show(context),
+      child: Container(
+        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              colorScheme.primaryContainer,
+              colorScheme.primaryContainer.withValues(alpha: 0.7),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: colorScheme.primary.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: colorScheme.primary.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.folder_special,
+                color: colorScheme.primary,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Unlock Folders',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                  Text(
+                    'Organize your codes into folders',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: colorScheme.primary,
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -228,6 +322,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     BuildContext context,
     WidgetRef ref,
     List<Account> accounts,
+    bool isPremium,
   ) {
     return ListView.builder(
       padding: const EdgeInsets.only(top: 8, bottom: 88),
@@ -250,7 +345,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     _selectedAccountIds.add(account.id);
                   });
                 } else {
-                  _showAccountOptions(context, ref, account);
+                  _showAccountOptions(context, ref, account, isPremium);
                 }
               },
             ),
@@ -282,7 +377,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  void _showAccountOptions(BuildContext context, WidgetRef ref, Account account) {
+  void _showAccountOptions(BuildContext context, WidgetRef ref, Account account, bool isPremium) {
     showModalBottomSheet(
       context: context,
       builder: (context) => SafeArea(
@@ -292,9 +387,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ListTile(
               leading: const Icon(Icons.folder_outlined),
               title: const Text('Move to folder'),
+              trailing: isPremium
+                  ? null
+                  : Icon(
+                      Icons.lock_outline,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
               onTap: () {
                 Navigator.pop(context);
-                _showMoveToFolderDialog(context, ref, account);
+                _requirePremium(() => _showMoveToFolderDialog(context, ref, account));
               },
             ),
             ListTile(
