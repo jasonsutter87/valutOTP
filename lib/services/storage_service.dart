@@ -8,6 +8,7 @@ import '../models/folder.dart';
 class StorageService {
   static const _accountsKey = 'vault_otp_accounts';
   static const _foldersKey = 'vault_otp_folders';
+  static const _lastFolderPathKey = 'vault_otp_last_folder_path';
 
   final FlutterSecureStorage _storage;
 
@@ -89,20 +90,62 @@ class StorageService {
   }
 
   Future<void> deleteFolder(String id) async {
-    // First, unassign all accounts from this folder
+    final folders = await getFolders();
+
+    // Find all subfolders (for cascade delete)
+    final folderIdsToDelete = <String>{id};
+    for (final folder in folders) {
+      if (folder.parentId == id) {
+        folderIdsToDelete.add(folder.id);
+      }
+    }
+
+    // Unassign all accounts from deleted folders
     final accounts = await getAccounts();
     final updatedAccounts = accounts.map((a) {
-      if (a.folderId == id) {
+      if (a.folderId != null && folderIdsToDelete.contains(a.folderId)) {
         return a.copyWith(clearFolderId: true);
       }
       return a;
     }).toList();
     await saveAccounts(updatedAccounts);
 
-    // Then delete the folder
-    final folders = await getFolders();
-    folders.removeWhere((f) => f.id == id);
+    // Delete the folder and its subfolders
+    folders.removeWhere((f) => folderIdsToDelete.contains(f.id));
     await saveFolders(folders);
+  }
+
+  // ============ Last Folder Path ============
+
+  /// Gets the last folder navigation path (list of folder IDs).
+  /// Returns empty list if none saved or if saved folders no longer exist.
+  Future<List<String>> getLastFolderPath() async {
+    final json = await _storage.read(key: _lastFolderPathKey);
+    if (json == null) return [];
+
+    final List<dynamic> decoded = jsonDecode(json);
+    final path = decoded.cast<String>();
+
+    // Validate that all folders in path still exist
+    final folders = await getFolders();
+    final folderIds = folders.map((f) => f.id).toSet();
+
+    // Return the valid portion of the path
+    final validPath = <String>[];
+    for (final id in path) {
+      if (folderIds.contains(id)) {
+        validPath.add(id);
+      } else {
+        break; // Stop at first missing folder
+      }
+    }
+    return validPath;
+  }
+
+  /// Saves the current folder navigation path.
+  Future<void> saveLastFolderPath(List<String> path) async {
+    final json = jsonEncode(path);
+    await _storage.write(key: _lastFolderPathKey, value: json);
   }
 
   // ============ Utility ============
@@ -111,5 +154,6 @@ class StorageService {
   Future<void> clearAll() async {
     await _storage.delete(key: _accountsKey);
     await _storage.delete(key: _foldersKey);
+    await _storage.delete(key: _lastFolderPathKey);
   }
 }

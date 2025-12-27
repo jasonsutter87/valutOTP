@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/account.dart';
 import '../services/storage_service.dart';
 import 'storage_provider.dart';
+import 'folders_provider.dart';
 
 /// Provides the list of all accounts
 final accountsProvider =
@@ -52,16 +53,46 @@ class AccountsNotifier extends AsyncNotifier<List<Account>> {
   }
 }
 
-/// Provides accounts filtered by folder
+/// Provides accounts filtered by folder (includes accounts in subfolders)
 /// Pass null for "All", or a folder ID to filter
 final accountsByFolderProvider =
+    Provider.family<List<Account>, String?>((ref, folderId) {
+  final accountsAsync = ref.watch(accountsProvider);
+  final folders = ref.watch(foldersProvider).value ?? [];
+
+  return accountsAsync.when(
+    data: (accounts) {
+      if (folderId == null) {
+        return accounts;
+      }
+
+      // Get all folder IDs that belong to this folder tree
+      // (the folder itself + any subfolders)
+      final folderIds = <String>{folderId};
+      for (final folder in folders) {
+        if (folder.parentId == folderId) {
+          folderIds.add(folder.id);
+        }
+      }
+
+      return accounts.where((a) => folderIds.contains(a.folderId)).toList();
+    },
+    loading: () => [],
+    error: (_, __) => [],
+  );
+});
+
+/// Provides accounts directly in a folder (not including subfolders)
+/// Useful for showing accounts at current navigation level only
+final accountsDirectlyInFolderProvider =
     Provider.family<List<Account>, String?>((ref, folderId) {
   final accountsAsync = ref.watch(accountsProvider);
 
   return accountsAsync.when(
     data: (accounts) {
       if (folderId == null) {
-        return accounts;
+        // At root: show only accounts with no folder
+        return accounts.where((a) => a.folderId == null).toList();
       }
       return accounts.where((a) => a.folderId == folderId).toList();
     },

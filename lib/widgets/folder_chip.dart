@@ -5,12 +5,14 @@ class FolderChip extends StatelessWidget {
   final String label;
   final bool isSelected;
   final VoidCallback onTap;
+  final bool hasSubfolders;
 
   const FolderChip({
     super.key,
     required this.label,
     required this.isSelected,
     required this.onTap,
+    this.hasSubfolders = false,
   });
 
   @override
@@ -38,12 +40,25 @@ class FolderChip extends StatelessWidget {
                 ]
               : null,
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : Colors.grey.shade700,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.grey.shade700,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              ),
+            ),
+            if (hasSubfolders) ...[
+              const SizedBox(width: 4),
+              Icon(
+                Icons.chevron_right,
+                size: 16,
+                color: isSelected ? Colors.white : Colors.grey.shade700,
+              ),
+            ],
+          ],
         ),
       ),
     );
